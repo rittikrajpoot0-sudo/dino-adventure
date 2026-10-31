@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dino Adventure - Magic Island</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            overscroll-behavior: none;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float {
+            animation: float 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans overflow-hidden select-none m-0 p-0 w-screen h-screen flex flex-col items-center justify-center">
+
+    <!-- Game Container -->
+    <div id="game-container" class="relative w-full max-w-4xl h-full max-h-[750px] bg-sky-400 shadow-2xl overflow-hidden flex flex-col justify-between select-none">
+        
+        <!-- Top HUD -->
+        <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-20 pointer-events-none bg-gradient-to-b from-black/60 to-transparent">
+            <div class="flex items-center space-x-4">
+                <div class="bg-amber-500/90 border-2 border-amber-300 text-white px-3 py-1 rounded-full font-black text-lg shadow-lg flex items-center space-x-1">
+                    <span>⭐</span>
+                    <span id="score-display">0</span>
+                </div>
+                <div class="bg-indigo-600/90 border-2 border-indigo-300 text-white px-3 py-1 rounded-full font-bold text-sm shadow-lg">
+                    Level <span id="level-display">1</span> / 10
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3 pointer-events-auto">
+                <button id="sound-btn" onclick="toggleSound()" class="bg-white/20 hover:bg-white/40 active:scale-95 text-white p-2.5 rounded-full shadow-md backdrop-blur-sm transition cursor-pointer text-xl">
+                    🔊
+                </button>
+                <button id="pause-btn" onclick="togglePause()" class="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black px-4 py-1.5 rounded-full shadow-md transition cursor-pointer text-sm">
+                    PAUSE
+                </button>
+            </div>
+        </div>
+
+        <!-- Canvas for Game Graphics -->
+        <canvas id="gameCanvas" class="absolute inset-0 w-full h-full cursor-pointer z-10"></canvas>
+
+        <!-- Start Screen Overlay -->
+        <div id="start-screen" class="absolute inset-0 z-30 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center p-6 text-center">
+            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]"></div>
+            
+            <div class="relative z-10 animate-float mb-4">
+                <div class="text-7xl mb-2">🦖</div>
+                <h1 class="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-pink-400 to-emerald-400 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
+                    DINO ADVENTURE
+                </h1>
+                <h2 class="text-xl md:text-2xl font-bold text-amber-300 tracking-wider mt-1 drop-shadow">
+                    MAGIC ISLAND
+                </h2>
+            </div>
+
+            <p class="relative z-10 text-slate-200 text-sm md:text-base max-w-md mb-6 font-medium">
+                Tap anywhere or press Space/ArrowUp to jump! Run through 10 magical worlds, collect stars, avoid obstacles, and unlock awesome new dinosaur skins!
+            </p>
+
+            <div class="relative z-10 flex flex-col sm:flex-row gap-4 w-full max-w-xs">
+                <button onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 active:scale-95 text-white font-black text-xl rounded-2xl shadow-xl border-b-4 border-green-800 transition cursor-pointer">
+                    PLAY GAME 🚀
+                </button>
+                <button onclick="openLevelSelect()" class="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white font-bold text-lg rounded-2xl shadow-lg border-b-4 border-indigo-900 transition cursor-pointer">
+                    LEVELS & WARDROBE 🗺️
+                </button>
+            </div>
+            
+            <div class="relative z-10 mt-6 text-xs text-slate-400">
+                Designed for Kids Aged 6–8 • No Ads • PWA Offline Ready
+            </div>
+        </div>
+
+        <!-- Level Select & Wardrobe Modal -->
+        <div id="level-modal" class="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md hidden flex flex-col items-center justify-center p-4">
+            <div class="bg-slate-900 border-4 border-indigo-500/50 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                <div class="bg-indigo-900 p-4 flex justify-between items-center border-b border-indigo-700">
+                    <h2 class="text-xl font-black text-amber-300 flex items-center space-x-2">
+                        <span>🗺️</span> <span>SELECT LEVEL & WARDROBE</span>
+                    </h2>
+                    <button onclick="closeLevelSelect()" class="text-white hover:text-red-400 font-bold text-xl px-3 py-1 rounded-lg bg-red-600/50">✕</button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto space-y-6 flex-1">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-slate-700 pb-2 space-x-4">
+                        <button onclick="switchTab('levels')" id="tab-levels-btn" class="px-4 py-2 font-black text-amber-400 border-b-2 border-amber-400 cursor-pointer">Levels (1-10)</button>
+                        <button onclick="switchTab('wardrobe')" id="tab-wardrobe-btn" class="px-4 py-2 font-bold text-slate-400 hover:text-white cursor-pointer">Dino Wardrobe 🦖</button>
+                    </div>
+
+                    <!-- Levels Grid -->
+                    <div id="levels-tab-content" class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Wardrobe Grid -->
+                    <div id="wardrobe-tab-content" class="hidden grid-cols-1 sm:grid-cols-3 gap-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause Modal -->
+        <div id="pause-modal" class="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm hidden flex flex-col items-center justify-center p-4">
+            <div class="bg-slate-900 border-2 border-slate-700 p-6 rounded-3xl text-center space-y-4 max-w-sm w-full shadow-2xl">
+                <h2 class="text-3xl font-black text-amber-400">GAME PAUSED</h2>
+                <div class="space-y-2">
+                    <button onclick="togglePause()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow cursor-pointer">Resume Game</button>
+                    <button onclick="openLevelSelect()" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow cursor-pointer">Level Select</button>
+                    <button onclick="returnToMenu()" class="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl shadow cursor-pointer">Main Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Complete / Win Modal -->
+        <div id="win-modal" class="absolute inset-0 z-40 bg-black/80 backdrop-blur-md hidden flex flex-col items-center justify-center p-4 text-center">
+            <div class="bg-gradient-to-b from-indigo-900 to-slate-900 border-4 border-amber-400 p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-4 animate-float">
+                <div class="text-6xl">🏆</div>
+                <h2 class="text-3xl font-black text-amber-300">LEVEL COMPLETED!</h2>
+                <p id="win-message" class="text-slate-200 text-sm">Amazing job! You conquered the magical world!</p>
+                <div class="bg-black/40 p-4 rounded-2xl flex justify-around text-center">
+                    <div>
+                        <div class="text-xs text-slate-400">Stars Collected</div>
+                        <div id="win-stars" class="text-xl font-bold text-amber-400">⭐ 0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400">Score</div>
+                        <div id="win-score" class="text-xl font-bold text-emerald-400">0</div>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="openLevelSelect()" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl shadow cursor-pointer">Levels</button>
+                    <button onclick="nextLevel()" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 font-black rounded-xl shadow cursor-pointer">Next Level ➡️</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameover-modal" class="absolute inset-0 z-40 bg-black/80 backdrop-blur-md hidden flex flex-col items-center justify-center p-4 text-center">
+            <div class="bg-gradient-to-b from-red-950 to-slate-900 border-4 border-red-500 p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-4">
+                <div class="text-6xl">💥</div>
+                <h2 class="text-3xl font-black text-red-400">OOPS! SO CLOSE!</h2>
+                <p class="text-slate-300 text-sm">Don't give up! Little Dino can do it with one more try!</p>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="openLevelSelect()" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl shadow cursor-pointer">Levels</button>
+                    <button onclick="restartLevel()" class="flex-1 py-3 bg-amber-500 hover:bg-amber-600 font-black rounded-xl shadow cursor-pointer">Try Again 🔄</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registered!', reg))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+
+        // --- GAME STATE & CONFIGURATION ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let gameState = 'START'; // START, PLAYING, PAUSED, WIN, GAMEOVER
+        let score = 0;
+        let currentLevel = 1;
+        let unlockedLevel = 1;
+        let soundEnabled = true;
+        let totalStars = 0;
+        let activeSkin = 'default';
+
+        // Load saved progress
+        if (localStorage.getItem('dino_unlockedLevel')) {
+            unlockedLevel = parseInt(localStorage.getItem('dino_unlockedLevel')) || 1;
+        }
+        if (localStorage.getItem('dino_totalStars')) {
+            totalStars = parseInt(localStorage.getItem('dino_totalStars')) || 0;
+        }
+        if (localStorage.getItem('dino_activeSkin')) {
+            activeSkin = localStorage.getItem('dino_activeSkin') || 'default';
+        }
+
+        // Dino Skins Database
+        const skins = {
+            default: { name: 'Dangerous Dino King', color1: '#15803d', color2: '#14532d', accent: '#facc15', req: 0 },
+            ruby: { name: 'Ruby Dragon', color1: '#dc2626', color2: '#991b1b', accent: '#fef08a', req: 25 },
+            sapphire: { name: 'Sapphire Beast', color1: '#2563eb', color2: '#1e40af', accent: '#93c5fd', req: 50 },
+            gold: { name: 'Golden Rex', color1: '#d97706', color2: '#b45309', accent: '#fef08a', req: 100 }
+        };
+
+        // Level Configurations (10 Levels)
+        const levels = [
+            { id: 1, name: "Sunny Meadow", bgType: "meadow", obstacleFreq: 140, speed: 3.5, targetScore: 15 },
+            { id: 2, name: "Crystal River", bgType: "river", obstacleFreq: 130, speed: 3.8, targetScore: 20 },
+            { id: 3, name: "Whispering Woods", bgType: "woods", obstacleFreq: 120, speed: 4.1, targetScore: 25 },
+            { id: 4, name: "Magic Mushroom Valley", bgType: "shrooms", obstacleFreq: 110, speed: 4.4, targetScore: 30 },
+            { id: 5, name: "Starlight Canyon", bgType: "canyon", obstacleFreq: 105, speed: 4.7, targetScore: 35 },
+            { id: 6, name: "Golden Volcano", bgType: "volcano", obstacleFreq: 100, speed: 5.0, targetScore: 40 },
+            { id: 7, name: "Rainbow Skyway", bgType: "sky", obstacleFreq: 95, speed: 5.3, targetScore: 45 },
+            { id: 8, name: "Emerald Jungle", bgType: "jungle", obstacleFreq: 90, speed: 5.6, targetScore: 50 },
+            { id: 9, name: "Mystic Temple", bgType: "temple", obstacleFreq: 85, speed: 5.9, targetScore: 55 },
+            { id: 10, name: "Dragon Kingdom", bgType: "dragon", obstacleFreq: 80, speed: 6.2, targetScore: 60 }
+        ];
+
+        // Player (Dino) Object
+        let dino = {
+            x: 80,
+            y: 0,
+            width: 52,
+            height: 60,
+            vy: 0,
+            jumpForce: -11.5,
+            gravity: 0.55,
+            groundY: 0,
+            isJumping: false,
+            jumpsCount: 0,
+            maxJumps: 2,
+            animTimer: 0
+        };
+
+        let obstacles = [];
+        let stars = [];
+        let particles = [];
+        let frameCount = 0;
+        let levelScore = 0;
+        let levelTarget = 15;
+
+        // --- WEB AUDIO API SOUND SYSTEM ---
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'jump') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'star') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880, now + 0.08); // A5
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + i * 0.1);
+                    g.gain.setValueAtTime(0.2, now + i * 0.1);
+                    g.gain.linearRampToValueAtTime(0.01, now + i * 0.1 + 0.2);
+                    o.start(now + i * 0.1);
+                    o.stop(now + i * 0.1 + 0.2);
+                });
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        // --- CANVAS RESIZING ---
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            dino.groundY = canvas.height - 110;
+            if (gameState === 'START' || dino.y === 0) {
+                dino.y = dino.groundY - dino.height;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            renderLevelSelect();
+            requestAnimationFrame(gameLoop);
+        });
+
+        // --- INPUT HANDLING (RESPONSIVE MULTI-JUMP) ---
+        function triggerJump() {
+            if (gameState !== 'PLAYING') return;
+
+            if (dino.jumpsCount < dino.maxJumps) {
+                dino.vy = dino.jumpForce;
+                dino.isJumping = true;
+                dino.jumpsCount++;
+                playSound('jump');
+
+                // Spawn jump dust particles
+                for (let i = 0; i < 5; i++) {
+                    particles.push({
+                        x: dino.x + 20,
+                        y: dino.groundY,
+                        vx: (Math.random() - 0.5) * 3,
+                        vy: -Math.random() * 2 - 1,
+                        radius: Math.random() * 4 + 2,
+                        color: 'rgba(255,255,255,0.7)',
+                        life: 20
+                    });
+                }
+            }
+        }
+
+        window.addEventListener('pointerdown', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('#level-modal') || e.target.closest('#pause-modal') || e.target.closest('#win-modal') || e.target.closest('#gameover-modal')) {
+                return;
+            }
+            triggerJump();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                triggerJump();
+            }
+        });
+
+        // --- GAME CONTROLS & FLOW ---
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            loadLevel(currentLevel);
+        }
+
+        function loadLevel(lvlId) {
+            currentLevel = lvlId;
+            const cfg = levels[lvlId - 1];
+            levelTarget = cfg.targetScore;
+            levelScore = 0;
+            obstacles = [];
+            stars = [];
+            particles = [];
+            frameCount = 0;
+            dino.y = dino.groundY - dino.height;
+            dino.vy = 0;
+            dino.jumpsCount = 0;
+            dino.isJumping = false;
+
+            document.getElementById('level-display').innerText = currentLevel;
+            document.getElementById('score-display').innerText = levelScore;
+
+            document.getElementById('pause-modal').classList.add('hidden');
+            document.getElementById('win-modal').classList.add('hidden');
+            document.getElementById('gameover-modal').classList.add('hidden');
+            document.getElementById('level-modal').classList.add('hidden');
+
+            gameState = 'PLAYING';
+        }
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                document.getElementById('pause-modal').classList.remove('hidden');
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                document.getElementById('pause-modal').classList.add('hidden');
+            }
+        }
+
+        function returnToMenu() {
+            gameState = 'START';
+            document.getElementById('pause-modal').classList.add('hidden');
+            document.getElementById('win-modal').classList.add('hidden');
+            document.getElementById('gameover-modal').classList.add('hidden');
+            document.getElementById('level-modal').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        }
+
+        function restartLevel() {
+            loadLevel(currentLevel);
+        }
+
+        function nextLevel() {
+            if (currentLevel < 10) {
+                loadLevel(currentLevel + 1);
+            } else {
+                openLevelSelect();
+            }
+        }
+
+        function openLevelSelect() {
+            gameState = 'PAUSED';
+            document.getElementById('pause-modal').classList.add('hidden');
+            document.getElementById('win-modal').classList.add('hidden');
+            document.getElementById('gameover-modal').classList.add('hidden');
+            renderLevelSelect();
+            document.getElementById('level-modal').classList.remove('hidden');
+        }
+
+        function closeLevelSelect() {
+            document.getElementById('level-modal').classList.add('hidden');
+            if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-btn').innerText = soundEnabled ? '🔊' : '🔇';
+        }
+
+        function switchTab(tab) {
+            const levelsBtn = document.getElementById('tab-levels-btn');
+            const wardrobeBtn = document.getElementById('tab-wardrobe-btn');
+            const levelsContent = document.getElementById('levels-tab-content');
+            const wardrobeContent = document.getElementById('wardrobe-tab-content');
+
+            if (tab === 'levels') {
+                levelsBtn.className = "px-4 py-2 font-black text-amber-400 border-b-2 border-amber-400 cursor-pointer";
+                wardrobeBtn.className = "px-4 py-2 font-bold text-slate-400 hover:text-white cursor-pointer";
+                levelsContent.classList.remove('hidden');
+                wardrobeContent.classList.add('hidden');
+            } else {
+                wardrobeBtn.className = "px-4 py-2 font-black text-amber-400 border-b-2 border-amber-400 cursor-pointer";
+                levelsBtn.className = "px-4 py-2 font-bold text-slate-400 hover:text-white cursor-pointer";
+                wardrobeContent.classList.remove('hidden');
+                levelsContent.classList.add('hidden');
+                renderWardrobe();
+            }
+        }
+
+        function renderLevelSelect() {
+            const grid = document.getElementById('levels-tab-content');
+            grid.innerHTML = '';
+            levels.forEach(lvl => {
+                const unlocked = lvl.id <= unlockedLevel;
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl flex flex-col items-center justify-center border-2 transition ${
+                    unlocked ? 'bg-indigo-800/80 border-indigo-500 hover:bg-indigo-700 cursor-pointer shadow-lg' : 'bg-slate-800/50 border-slate-700 opacity-60 cursor-not-allowed'
+                }`;
+                card.innerHTML = `
+                    <div class="text-2xl mb-1">${unlocked ? '🌟' : '🔒'}</div>
+                    <div class="font-black text-white text-base">Level ${lvl.id}</div>
+                    <div class="text-xs text-amber-300 text-center mt-1">${lvl.name}</div>
+                `;
+                if (unlocked) {
+                    card.onclick = () => loadLevel(lvl.id);
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        function renderWardrobe() {
+            const grid = document.getElementById('wardrobe-tab-content');
+            grid.innerHTML = '';
+            Object.keys(skins).forEach(key => {
+                const skin = skins[key];
+                const unlocked = totalStars >= skin.req || key === 'default';
+                const active = activeSkin === key;
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl flex flex-col items-center justify-between border-2 ${
+                    active ? 'bg-emerald-900/80 border-emerald-400' : unlocked ? 'bg-slate-800 border-slate-600' : 'bg-slate-900/80 border-slate-800 opacity-60'
+                }`;
+                card.innerHTML = `
+                    <div class="text-center">
+                        <div class="text-3xl mb-1">🦖</div>
+                        <div class="font-bold text-white text-sm">${skin.name}</div>
+                        <div class="text-xs text-amber-300 mt-1">${skin.req === 0 ? 'Unlocked' : 'Req: ' + skin.req + ' ⭐'}</div>
+                    </div>
+                    <div class="mt-3 w-full">
+                        ${active ? '<span class="block text-center text-xs font-bold text-emerald-400 bg-emerald-950 py-1.5 rounded-lg">ACTIVE</span>' : 
+                          unlocked ? `<button onclick="selectSkin('${key}')" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg cursor-pointer">Select</button>` : 
+                          `<span class="block text-center text-xs text-slate-400 bg-slate-800 py-1.5 rounded-lg">Locked</span>`}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function selectSkin(key) {
+            activeSkin = key;
+            localStorage.setItem('dino_activeSkin', activeSkin);
+            renderWardrobe();
+        }
+
+        // --- GAME LOOP & UPDATES ---
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            frameCount++;
+            const cfg = levels[currentLevel - 1];
+
+            // Update Dino Physics
+            dino.vy += dino.gravity;
+            dino.y += dino.vy;
+
+            if (dino.y >= dino.groundY - dino.height) {
+                dino.y = dino.groundY - dino.height;
+                dino.vy = 0;
+                dino.isJumping = false;
+                dino.jumpsCount = 0;
+            }
+
+            dino.animTimer += cfg.speed * 0.15;
+
+            // Spawn Obstacles
+            if (frameCount % cfg.obstacleFreq === 0) {
+                const obsTypes = ['rock', 'log', 'crystal', 'cactus'];
+                const type = obsTypes[Math.floor(Math.random() * obsTypes.length)];
+                obstacles.push({
+                    x: canvas.width + 50,
+                    y: dino.groundY - 40,
+                    width: 35,
+                    height: 40,
+                    type: type
+                });
+            }
+
+            // Spawn Stars
+            if (frameCount % 70 === 0) {
+                stars.push({
+                    x: canvas.width + 50,
+                    y: dino.groundY - Math.random() * 120 - 50,
+                    radius: 14,
+                    collected: false
+                });
+            }
+
+            // Move Obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].x -= cfg.speed;
+                if (obstacles[i].x < -60) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Move Stars
+            for (let i = stars.length - 1; i >= 0; i--) {
+                stars[i].x -= cfg.speed;
+                if (stars[i].x < -30) {
+                    stars.splice(i, 1);
+                }
+            }
+
+            // Move Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Collision Detection with Obstacles
+            const hitboxMargin = 12;
+            for (let obs of obstacles) {
+                if (
+                    dino.x + hitboxMargin < obs.x + obs.width - hitboxMargin &&
+                    dino.x + dino.width - hitboxMargin > obs.x + hitboxMargin &&
+                    dino.y + hitboxMargin < obs.y + obs.height &&
+                    dino.y + dino.height > obs.y + hitboxMargin
+                ) {
+                    gameState = 'GAMEOVER';
+                    playSound('hit');
+                    document.getElementById('gameover-modal').classList.remove('hidden');
+                    return;
+                }
+            }
+
+            // Collision Detection with Stars
+            for (let i = stars.length - 1; i >= 0; i--) {
+                const s = stars[i];
+                const dx = (dino.x + dino.width / 2) - s.x;
+                const dy = (dino.y + dino.height / 2) - s.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < dino.width / 2 + s.radius) {
+                    stars.splice(i, 1);
+                    levelScore++;
+                    totalStars++;
+                    score += 10;
+                    playSound('star');
+
+                    document.getElementById('score-display').innerText = levelScore;
+                    localStorage.setItem('dino_totalStars', totalStars);
+
+                    // Check Level Win
+                    if (levelScore >= levelTarget) {
+                        gameState = 'WIN';
+                        playSound('win');
+                        if (currentLevel + 1 > unlockedLevel && currentLevel < 10) {
+                            unlockedLevel = currentLevel + 1;
+                            localStorage.setItem('dino_unlockedLevel', unlockedLevel);
+                        }
+                        document.getElementById('win-stars').innerText = '⭐ ' + levelScore;
+                        document.getElementById('win-score').innerText = score;
+                        document.getElementById('win-modal').classList.remove('hidden');
+                        return;
+                    }
+                }
+            }
+        }
+
+        // --- DRAWING & GRAPHICS ---
+        function drawBackground() {
+            const cfg = levels[currentLevel - 1];
+
+            // Sky gradient based on level
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            if (currentLevel <= 3) {
+                grad.addColorStop(0, '#38bdf8');
+                grad.addColorStop(1, '#bae6fd');
+            } else if (currentLevel <= 6) {
+                grad.addColorStop(0, '#9333ea');
+                grad.addColorStop(1, '#f472b6');
+            } else {
+                grad.addColorStop(0, '#0f172a');
+                grad.addColorStop(1, '#312e81');
+            }
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background Hills / Mountains (Parallax effect)
+            ctx.fillStyle = currentLevel <= 3 ? '#16a34a' : '#6b21a8';
+            ctx.beginPath();
+            ctx.moveTo(0, dino.groundY);
+            for (let x = 0; x <= canvas.width; x += 100) {
+                let hX = (x + (frameCount * 0.5) % canvas.width);
+                ctx.lineTo(hX, dino.groundY - 60 - Math.sin(x * 0.01) * 30);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.fill();
+
+            // Ground
+            ctx.fillStyle = currentLevel <= 3 ? '#15803d' : '#4c1d95';
+            ctx.fillRect(0, dino.groundY, canvas.width, canvas.height - dino.groundY);
+
+            // Grass details
+            ctx.fillStyle = currentLevel <= 3 ? '#22c55e' : '#7c3aed';
+            for (let x = 0; x < canvas.width; x += 30) {
+                let gX = (x - (frameCount * levels[currentLevel-1].speed) % 30);
+                ctx.fillRect(gX, dino.groundY, 15, 8);
+            }
+        }
+
+        function drawDino() {
+            ctx.save();
+            ctx.translate(dino.x, dino.y);
+
+            const skin = skins[activeSkin] || skins.default;
+
+            // 3D Cartoon Dangerous Dino King Body
+            // Tail
+            ctx.fillStyle = skin.color2;
+            ctx.beginPath();
+            ctx.moveTo(10, dino.height - 25);
+            ctx.lineTo(-15, dino.height - 15 + Math.sin(dino.animTimer) * 5);
+            ctx.lineTo(5, dino.height - 10);
+            ctx.fill();
+
+            // Back Spikes
+            ctx.fillStyle = skin.accent;
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(15 + i * 10, 15);
+                ctx.lineTo(20 + i * 10, 5);
+                ctx.lineTo(25 + i * 10, 15);
+                ctx.fill();
+            }
+
+            // Main Torso
+            ctx.fillStyle = skin.color1;
+            ctx.beginPath();
+            ctx.ellipse(dino.width / 2, dino.height / 2 + 5, 22, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Belly Shading / Highlights
+            ctx.fillStyle = skin.color2;
+            ctx.beginPath();
+            ctx.ellipse(dino.width / 2 + 4, dino.height / 2 + 8, 14, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head
+            ctx.beginPath();
+            ctx.arc(dino.width - 16, 18, 16, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Regal Head Crown Spikes
+            ctx.fillStyle = skin.accent;
+            ctx.beginPath();
+            ctx.moveTo(dino.width - 22, 5);
+            ctx.lineTo(dino.width - 18, -3);
+            ctx.lineTo(dino.width - 14, 5);
+            ctx.fill();
+
+            // Snout
+            ctx.fillStyle = skin.color1;
+            ctx.beginPath();
+            ctx.roundRect(dino.width - 26, 14, 22, 14, 4);
+            ctx.fill();
+
+            // Sharp Cartoon Teeth
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(dino.width - 18, 28);
+            ctx.lineTo(dino.width - 14, 23);
+            ctx.lineTo(dino.width - 10, 28);
+            ctx.fill();
+
+            // Glowing Golden Eye
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(dino.width - 14, 14, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(dino.width - 13, 14, 2, 0, Math.PI * 2);
+            ctx.fill();
+            // Highlight
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(dino.width - 14.5, 12.5, 1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tiny Fierce Arms
+            ctx.fillStyle = skin.color2;
+            ctx.beginPath();
+            ctx.roundRect(dino.width - 12, 26, 10, 5, 2);
+            ctx.fill();
+
+            // Moving Legs
+            const legOffset = Math.sin(dino.animTimer) * 8;
+            ctx.fillStyle = skin.color2;
+            // Left leg
+            ctx.beginPath();
+            ctx.roundRect(14, dino.height - 18 + (dino.isJumping ? -4 : legOffset), 8, 18, 4);
+            ctx.fill();
+            // Right leg
+            ctx.beginPath();
+            ctx.roundRect(30, dino.height - 18 + (dino.isJumping ? -4 : -legOffset), 8, 18, 4);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawObstacles() {
+            for (let obs of obstacles) {
+                ctx.save();
+                ctx.translate(obs.x, obs.y);
+                if (obs.type === 'rock') {
+                    ctx.fillStyle = '#64748b';
+                    ctx.beginPath();
+                    ctx.roundRect(0, 10, obs.width, obs.height - 10, 8);
+                    ctx.fill();
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.beginPath();
+                    ctx.roundRect(5, 15, 12, 8, 4);
+                    ctx.fill();
+                } else if (obs.type === 'log') {
+                    ctx.fillStyle = '#78350f';
+                    ctx.beginPath();
+                    ctx.roundRect(0, 15, obs.width, 22, 6);
+                    ctx.fill();
+                    ctx.fillStyle = '#92400e';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 26, 5, 11, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (obs.type === 'crystal') {
+                    ctx.fillStyle = '#ec4899';
+                    ctx.beginPath();
+                    ctx.moveTo(obs.width / 2, 0);
+                    ctx.lineTo(obs.width, obs.height);
+                    ctx.lineTo(0, obs.height);
+                    ctx.fill();
+                    ctx.fillStyle = '#f472b6';
+                    ctx.beginPath();
+                    ctx.moveTo(obs.width / 2, 5);
+                    ctx.lineTo(obs.width - 6, obs.height - 5);
+                    ctx.lineTo(obs.width / 2, obs.height - 5);
+                    ctx.fill();
+                } else {
+                    // Cactus
+                    ctx.fillStyle = '#15803d';
+                    ctx.beginPath();
+                    ctx.roundRect(10, 5, 15, obs.height - 5, 4);
+                    ctx.fill();
+                    ctx.fillRect(4, 15, 8, 6);
+                    ctx.fillRect(22, 22, 8, 6);
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawStars() {
+            for (let s of stars) {
+                ctx.save();
+                ctx.translate(s.x, s.y);
+                ctx.rotate(frameCount * 0.03);
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    ctx.lineTo(Math.cos((i * 4 * Math.PI) / 5) * s.radius, Math.sin((i * 4 * Math.PI) / 5) * s.radius);
+                    ctx.lineTo(Math.cos(((i + 0.5) * 4 * Math.PI) / 5) * (s.radius / 2), Math.sin(((i + 0.5) * 4 * Math.PI) / 5) * (s.radius / 2));
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function drawParticles() {
+            for (let p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBackground();
+            drawParticles();
+            drawStars();
+            drawObstacles();
+            drawDino();
+
+            if (gameState === 'PLAYING') {
+                update();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
